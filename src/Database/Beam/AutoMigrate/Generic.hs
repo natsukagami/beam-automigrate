@@ -353,8 +353,8 @@ instance
               (tname <> "_" <> cname <> "_fkey")
               reftname
               (S.fromList (zip (L.sort cnames) (L.sort refcnames)))
-              NoAction -- TODO: what should the default be?
-              NoAction -- TODO: what should the default be?
+              Cascade
+              Restrict
           )
     where
       cnames :: [ColumnName]

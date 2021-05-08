@@ -128,6 +128,17 @@ tableColumnsQ =
         "WHERE att.attrelid=? AND att.attnum>0 AND att.attisdropped='f' "
       ]
 
+-- | Get information about indexes in all tables.
+tableIndexesQ :: Pg.Query
+tableIndexesQ =
+  fromString $
+    unlines
+      [ "SELECT tablename, indexname, indexdef ",
+        "FROM pg_indexes ",
+        "WHERE schemaname NOT IN('information_schema', 'pg_catalog') ",
+        "AND indexname LIKE '%_idx'"
+      ]
+
 -- | Get the enumeration data for all enum types in the database.
 enumerationsQ :: Pg.Query
 enumerationsQ =
@@ -209,9 +220,10 @@ getSchema conn = do
   allDefaults <- getAllDefaults conn
   enumerationData <- Pg.fold_ conn enumerationsQ mempty getEnumeration
   sequences <- Pg.fold_ conn sequencesQ mempty getSequence
+  indexes <- Pg.fold_ conn tableIndexesQ mempty getIndex
   tables <-
     Pg.fold_ conn userTablesQ mempty (getTable allDefaults enumerationData allTableConstraints)
-  pure $ Schema tables (M.fromList $ M.elems enumerationData) sequences
+  pure $ Schema tables (M.fromList $ M.elems enumerationData) sequences indexes
   where
     getEnumeration ::
       Map Pg.Oid (EnumerationName, Enumeration) ->
@@ -219,6 +231,13 @@ getSchema conn = do
       IO (Map Pg.Oid (EnumerationName, Enumeration))
     getEnumeration allEnums (enumName, oid, V.toList -> vals) =
       pure $ M.insert oid (EnumerationName enumName, Enumeration vals) allEnums
+
+    getIndex ::
+      Indexes ->
+      (Text, Text, Text) ->
+      IO Indexes
+    getIndex allIndexes (tableName, indexName, indexDef) =
+      pure $ M.insert (IndexName indexName) (Index (TableName tableName) indexDef) allIndexes
 
     getSequence ::
       Sequences ->

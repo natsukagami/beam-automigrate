@@ -33,11 +33,42 @@ import Lens.Micro.Extras (preview)
 data Schema = Schema
   { schemaTables :: Tables,
     schemaEnumerations :: Enumerations,
-    schemaSequences :: Sequences
+    schemaSequences :: Sequences,
+    schemaIndexes :: Indexes
   }
   deriving (Show, Eq, Generic)
 
 instance NFData Schema
+
+--
+-- Indexes
+--
+
+type Indexes = Map IndexName Index
+
+newtype IndexName = IndexName
+  { indexName :: Text
+  }
+  deriving (Show, Eq, Ord, Generic)
+
+data Index = Index
+  { idxTable :: TableName,
+    idxDef :: Text
+  }
+  deriving (Show, Eq, Ord, Generic)
+
+data IdxOrder = IdxAsc | IdxDesc deriving (Show, Eq, Ord, Generic, Enum, Bounded)
+
+instance NFData IndexName
+
+instance NFData Index
+
+instance NFData IdxOrder
+
+mkIndexName :: TableName -> [ColumnName] -> IndexName
+mkIndexName table cols = IndexName ((tableName table) <> "_" <> colNames <> "_idx")
+  where
+    colNames = T.intercalate "_" $ fmap columnName cols
 
 --
 -- Enumerations
@@ -343,7 +374,7 @@ instance NFData DiffError
 --
 
 noSchema :: Schema
-noSchema = Schema mempty mempty mempty
+noSchema = Schema mempty mempty mempty mempty
 
 noTableConstraints :: Set TableConstraint
 noTableConstraints = mempty

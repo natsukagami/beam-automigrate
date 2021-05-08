@@ -377,7 +377,7 @@ genSchema :: Gen Schema
 genSchema = sized $ \tableNum -> do
   tableNames <- vectorOf tableNum genTableName
   tbls <- foldlM (\acc tName -> flip (M.insert tName) acc <$> genTable acc) mempty tableNames
-  pure $ Schema tbls mempty mempty
+  pure $ Schema tbls mempty mempty mempty
 
 --
 -- Generating Schema(s) which are not too dissimilar.
@@ -404,7 +404,7 @@ data ColumnEditAction
 genSimilarSchemas :: Gen (Schema, Schema)
 genSimilarSchemas = do
   initialSchema <- genSchema
-  (initialSchema,) <$> fmap (\tbs -> Schema tbs mempty mempty) (similarTables (schemaTables initialSchema))
+  (initialSchema,) <$> fmap (\tbs -> Schema tbs mempty mempty mempty) (similarTables (schemaTables initialSchema))
 
 similarTables :: Tables -> Gen Tables
 similarTables tbls = flip execStateT tbls $

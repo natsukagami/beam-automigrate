@@ -395,6 +395,8 @@ toSqlSyntax e =
               <> " DROP "
               <> renderColumnConstraint DropConstraint cstr
           )
+      IndexAdded idx -> ddlSyntax . idxDef $ idx
+      IndexRemoved idx -> ddlSyntax ("DROP INDEX " <> sqlEscaped (indexName . idxName $ idx))
   where
     safetyPrefix query =
       if editSafetyIs Safe e
@@ -650,6 +652,8 @@ prettyEditActionDescription =
       ["add sequence:", qs sequenceName, pshow' sequence0]
     SequenceRemoved sequenceName ->
       ["remove sequence:", qs sequenceName]
+    IndexAdded idx -> ["add index:", q . idxDef $ idx]
+    IndexRemoved idx -> ["remove index:", q . idxDef $ idx]
   where
     q t = "'" <> t <> "'"
     qt = q . tableName

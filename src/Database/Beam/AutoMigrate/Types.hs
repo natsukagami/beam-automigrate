@@ -66,9 +66,12 @@ instance NFData Index
 instance NFData IdxOrder
 
 mkIndexName :: TableName -> [ColumnName] -> IndexName
-mkIndexName table cols = IndexName ((tableName table) <> "_" <> colNames <> "_idx")
+mkIndexName table cols = IndexName (tableName table <> "_" <> colNames <> "_idx")
   where
     colNames = T.intercalate "_" $ fmap columnName cols
+
+idxName :: Index -> IndexName
+idxName = IndexName . head . T.splitOn " ON " . T.drop (T.length "CREATE INDEX ") . idxDef
 
 --
 -- Enumerations
@@ -256,6 +259,8 @@ data EditAction
   | EnumTypeValueAdded EnumerationName Text {- added value -} InsertionOrder Text {- insertion point -}
   | SequenceAdded SequenceName Sequence
   | SequenceRemoved SequenceName
+  | IndexAdded Index
+  | IndexRemoved Index
   deriving (Show, Eq)
 
 -- | Safety rating for a given edit.
@@ -283,6 +288,8 @@ defaultEditSafety = \case
   EnumTypeValueAdded {} -> Safe
   SequenceAdded {} -> Safe
   SequenceRemoved {} -> Unsafe
+  IndexAdded {} -> Safe
+  IndexRemoved {} -> Safe
 
 data EditCondition = EditCondition
   { _editCondition_query :: BeamSqlBackendSyntax Postgres,
@@ -354,6 +361,8 @@ instance NFData EditAction where
     eName `deepseq` inserted `deepseq` order `deepseq` insertionPoint `deepseq` ()
   rnf (SequenceAdded sName s) = sName `deepseq` s `deepseq` ()
   rnf (SequenceRemoved sName) = sName `deepseq` ()
+  rnf (IndexAdded idx) = idx `deepseq` ()
+  rnf (IndexRemoved idx) = idx `deepseq` ()
 
 -- | A possible enumerations of the reasons why a 'diff' operation might not work.
 data DiffError

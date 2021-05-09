@@ -63,11 +63,14 @@ editPriority = \case
   ColumnConstraintAdded {} -> Priority 9
   TableConstraintRemoved {} -> Priority 10
   ColumnConstraintRemoved {} -> Priority 11
+  -- Indexes
+  IndexRemoved {} -> Priority 12
+  IndexAdded {} -> Priority 13
   -- Destructive operations go last
-  ColumnRemoved {} -> Priority 12
-  TableRemoved {} -> Priority 13
-  EnumTypeRemoved {} -> Priority 14
-  SequenceRemoved {} -> Priority 15
+  ColumnRemoved {} -> Priority 14
+  TableRemoved {} -> Priority 15
+  EnumTypeRemoved {} -> Priority 16
+  SequenceRemoved {} -> Priority 17
 
 -- TODO: This needs to support adding conditional queries.
 mkEdit :: EditAction -> WithPriority Edit

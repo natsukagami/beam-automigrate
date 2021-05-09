@@ -541,11 +541,11 @@ indexOn tEntity cols schema = schema { schemaIndexes = M.insert name (Index tNam
     name = mkIndexName tName columnNames
     tName = TableName $ tEntity ^. dbEntityDescriptor . dbEntityName
     columnNames = concatMap (\case (I col _) -> colNames (tableSettings tEntity) col) cols
-    def = "CREATE INDEX " <> indexName name <> " ON public." <> Database.Beam.AutoMigrate.Types.tableName tName <> " USING btree (" <> constraints <> ")"
+    def = "CREATE INDEX " <> sqlEscaped (indexName name) <> " ON public." <> sqlEscaped (Database.Beam.AutoMigrate.Types.tableName tName) <> " USING btree (" <> constraints <> ")"
       where
         constraints = T.intercalate ", " . NL.toList $ fmap toCons cols
         toCons (I col order) = 
-          T.intercalate ", " (fmap columnName . colNames (tableSettings tEntity) $ col)
+          T.intercalate ", " (fmap (sqlEscaped . columnName) . colNames (tableSettings tEntity) $ col)
           <> orderText order
         orderText IdxAsc = ""
         orderText IdxDesc = " DESC"

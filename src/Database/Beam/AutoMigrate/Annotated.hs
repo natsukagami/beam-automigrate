@@ -49,6 +49,10 @@ module Database.Beam.AutoMigrate.Annotated
     foreignKeyOnPk,
     foreignKeyOn,
 
+    -- ** Indexes
+    IndexConstraint (..),
+    indexOn,
+
     -- * Other types and functions
     TableKind,
     DatabaseKind,
@@ -67,7 +71,9 @@ import Data.Monoid (Endo (..))
 import Data.Proxy
 import Data.Set (Set)
 import qualified Data.Set as S
+import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.List.NonEmpty as NL
 import qualified Database.Beam as Beam
 import Database.Beam.AutoMigrate.Compat
 import Database.Beam.AutoMigrate.Types
@@ -514,6 +520,35 @@ data ForeignKeyConstraint (tbl :: ((* -> *) -> *)) (tbl' :: ((* -> *) -> *)) whe
     (tbl (Beam.TableField tbl) -> PrimaryKey tbl' (Beam.TableField tbl)) ->
     (tbl' (Beam.TableField tbl') -> Beam.Columnar Beam.Identity (Beam.TableField tbl' ty)) ->
     ForeignKeyConstraint tbl tbl'
+
+data IndexConstraint (tbl :: ((* -> *) -> *)) where
+  -- | Use this to \"tag\" a standard Beam 'TableField' selector or 'PrimaryKey'.
+  I :: HasColumnNames entity tbl => (tbl (Beam.TableField tbl) -> entity) -> IdxOrder -> IndexConstraint tbl
+
+--
+-- Adding an index
+--
+indexOn ::
+  ( Beam.Beamable tbl, Beam.Table tbl ) =>
+  -- | The 'DatabaseEntity' of the /indexed/ table.
+  DatabaseEntity be db (TableEntity tbl) ->
+  -- | A list of columns to build an index on
+  NL.NonEmpty (IndexConstraint tbl) ->
+  Schema -> 
+  Schema
+indexOn tEntity cols schema = schema { schemaIndexes = M.insert name (Index tName def) . schemaIndexes $ schema }
+  where
+    name = mkIndexName tName columnNames
+    tName = TableName $ tEntity ^. dbEntityDescriptor . dbEntityName
+    columnNames = concatMap (\case (I col _) -> colNames (tableSettings tEntity) col) cols
+    def = "CREATE INDEX " <> indexName name <> " ON public." <> Database.Beam.AutoMigrate.Types.tableName tName <> " USING btree (" <> constraints <> ")"
+      where
+        constraints = T.intercalate ", " . NL.toList $ fmap toCons cols
+        toCons (I col order) = 
+          T.intercalate ", " (fmap columnName . colNames (tableSettings tEntity) $ col)
+          <> orderText order
+        orderText IdxAsc = ""
+        orderText IdxDesc = " DESC"
 
 -- | Special-case combinator to use when defining FK constraints referencing the /primary key/ of the
 -- target table.

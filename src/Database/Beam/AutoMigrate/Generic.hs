@@ -90,7 +90,8 @@ instance
      in Schema
           { schemaTables = tables,
             schemaEnumerations = gEnums db x,
-            schemaSequences = sequences
+            schemaSequences = sequences,
+            schemaIndexes = mempty
           }
 
 --

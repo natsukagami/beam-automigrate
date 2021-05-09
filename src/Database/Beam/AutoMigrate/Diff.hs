@@ -96,7 +96,8 @@ instance Diffable Schema where
     tableDiffs <- diff (schemaTables hsSchema) (schemaTables dbSchema)
     enumDiffs <- diff (schemaEnumerations hsSchema) (schemaEnumerations dbSchema)
     sequenceDiffs <- diff (schemaSequences hsSchema) (schemaSequences dbSchema)
-    pure $ tableDiffs <> enumDiffs <> sequenceDiffs
+    indexDiffs <- diff (schemaIndexes hsSchema) (schemaIndexes dbSchema) 
+    pure $ tableDiffs <> enumDiffs <> sequenceDiffs <> indexDiffs
 
 instance Diffable Tables where
   diff t1 = fmap D.toList . diffTables t1
@@ -106,6 +107,16 @@ instance Diffable Enumerations where
 
 instance Diffable Sequences where
   diff s1 = fmap D.toList . diffSequences s1
+
+instance Diffable Indexes where
+  diff s1 = Right . fmap mkEdit . diffIndexes s1
+    where
+      diffIndexes hsIndexes dbIndexes =
+        let indexAdded = M.difference hsIndexes dbIndexes
+            indexRemoved = M.difference dbIndexes hsIndexes in
+        whenAdded indexAdded <> whenRemoved indexRemoved            
+      whenAdded = fmap (IndexAdded . snd) . M.toList
+      whenRemoved = fmap (IndexRemoved . snd) . M.toList
 
 --
 -- Reference implementation

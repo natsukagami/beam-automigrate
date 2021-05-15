@@ -96,7 +96,7 @@ instance Diffable Schema where
     tableDiffs <- diff (schemaTables hsSchema) (schemaTables dbSchema)
     enumDiffs <- diff (schemaEnumerations hsSchema) (schemaEnumerations dbSchema)
     sequenceDiffs <- diff (schemaSequences hsSchema) (schemaSequences dbSchema)
-    indexDiffs <- diff (schemaIndexes hsSchema) (schemaIndexes dbSchema) 
+    indexDiffs <- diff (schemaIndexes hsSchema) (schemaIndexes dbSchema)
     pure $ tableDiffs <> enumDiffs <> sequenceDiffs <> indexDiffs
 
 instance Diffable Tables where
@@ -113,8 +113,8 @@ instance Diffable Indexes where
     where
       diffIndexes hsIndexes dbIndexes =
         let indexAdded = M.difference hsIndexes dbIndexes
-            indexRemoved = M.difference dbIndexes hsIndexes in
-        whenAdded indexAdded <> whenRemoved indexRemoved            
+            indexRemoved = M.difference dbIndexes hsIndexes
+         in whenAdded indexAdded <> whenRemoved indexRemoved
       whenAdded = fmap (IndexAdded . snd) . M.toList
       whenRemoved = fmap (IndexRemoved . snd) . M.toList
 
@@ -345,7 +345,12 @@ diffColumn tName colName hsColumn dbColumn = do
         pure $ D.map (mkEdit . ColumnConstraintAdded tName colName) (D.fromList . S.toList $ constraintsAdded)
   let colConstraintsRemoved = do
         guard (not $ S.null constraintsRemoved)
-        pure $ D.map (mkEdit . ColumnConstraintRemoved tName colName) (D.fromList . S.toList $ constraintsRemoved)
+        pure $ D.map (mkEdit . ColumnConstraintRemoved tName colName) (D.fromList . filter notOverwritten . S.toList $ constraintsRemoved)
+        where
+          notOverwritten u = not (isDefault u) || not defaultAdded
+          defaultAdded = any isDefault constraintsAdded
+          isDefault (Default _) = True
+          isDefault _ = False
   let typeChanged = do
         guard (columnType hsColumn /= columnType dbColumn)
         pure $ D.singleton (mkEdit $ ColumnTypeChanged tName colName (columnType dbColumn) (columnType hsColumn))

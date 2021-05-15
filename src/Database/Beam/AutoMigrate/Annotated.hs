@@ -67,13 +67,13 @@ module Database.Beam.AutoMigrate.Annotated
 where
 
 import Data.Kind
+import qualified Data.List.NonEmpty as NL
+import qualified Data.Map as M
 import Data.Monoid (Endo (..))
 import Data.Proxy
 import Data.Set (Set)
 import qualified Data.Set as S
-import qualified Data.Map as M
 import qualified Data.Text as T
-import qualified Data.List.NonEmpty as NL
 import qualified Database.Beam as Beam
 import Database.Beam.AutoMigrate.Compat
 import Database.Beam.AutoMigrate.Types
@@ -459,6 +459,8 @@ pgDefaultConstraint tyVal =
         Just tc | T.head syntaxFragment == '\'' -> syntaxFragment <> "::" <> tc
         -- NOTE(and) Special-case handling for CURRENT_TIMESTAMP. See issue #31.
         Just tc | syntaxFragment == "CURRENT_TIMESTAMP" -> "(" <> syntaxFragment <> ")::" <> tc
+        -- Special case for null
+        Just _ | syntaxFragment == "null" -> syntaxFragment
         Just tc -> "'" <> syntaxFragment <> "'::" <> tc
    in Default dVal
   where
@@ -529,14 +531,14 @@ data IndexConstraint (tbl :: ((* -> *) -> *)) where
 -- Adding an index
 --
 indexOn ::
-  ( Beam.Beamable tbl, Beam.Table tbl ) =>
+  (Beam.Beamable tbl, Beam.Table tbl) =>
   -- | The 'DatabaseEntity' of the /indexed/ table.
   DatabaseEntity be db (TableEntity tbl) ->
   -- | A list of columns to build an index on
   NL.NonEmpty (IndexConstraint tbl) ->
-  Schema -> 
+  Schema ->
   Schema
-indexOn tEntity cols schema = schema { schemaIndexes = M.insert name (Index tName def) . schemaIndexes $ schema }
+indexOn tEntity cols schema = schema {schemaIndexes = M.insert name (Index tName def) . schemaIndexes $ schema}
   where
     name = mkIndexName tName columnNames
     tName = TableName $ tEntity ^. dbEntityDescriptor . dbEntityName
@@ -544,9 +546,9 @@ indexOn tEntity cols schema = schema { schemaIndexes = M.insert name (Index tNam
     def = "CREATE INDEX " <> sqlEscaped (indexName name) <> " ON public." <> sqlEscaped (Database.Beam.AutoMigrate.Types.tableName tName) <> " USING btree (" <> constraints <> ")"
       where
         constraints = T.intercalate ", " . NL.toList $ fmap toCons cols
-        toCons (I col order) = 
+        toCons (I col order) =
           T.intercalate ", " (fmap (sqlEscaped . columnName) . colNames (tableSettings tEntity) $ col)
-          <> orderText order
+            <> orderText order
         orderText IdxAsc = ""
         orderText IdxDesc = " DESC"
 
